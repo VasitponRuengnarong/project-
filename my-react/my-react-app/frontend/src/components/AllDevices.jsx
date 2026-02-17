@@ -9,6 +9,11 @@ const AllDevices = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -148,6 +153,30 @@ const AllDevices = () => {
     }
   };
 
+  // Filter Logic
+  const filteredDevices = devices.filter((device) => {
+    const matchesSearch =
+      (device.DeviceName?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase(),
+      ) ||
+      (device.DeviceCode?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase(),
+      ) ||
+      (device.SerialNumber?.toLowerCase() || "").includes(
+        searchTerm.toLowerCase(),
+      );
+
+    const matchesCategory = filterCategory
+      ? String(device.CategoryID) === String(filterCategory)
+      : true;
+
+    const matchesStatus = filterStatus
+      ? String(device.StatusID) === String(filterStatus)
+      : true;
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
   if (loading) return <div className="p-4 text-center">กำลังโหลดข้อมูล...</div>;
   if (error)
     return (
@@ -161,6 +190,82 @@ const AllDevices = () => {
       <h2 className="text-2xl font-bold mb-6 text-gray-800">
         รายการอุปกรณ์ทั้งหมด
       </h2>
+
+      {/* Search & Filter Bar */}
+      <div className="bg-white p-4 rounded-lg shadow-sm mb-6 border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search Input */}
+          <div className="md:col-span-2 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg
+                className="h-5 w-5 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อ, รหัสครุภัณฑ์, Serial Number..."
+              className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <select
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
+              <option value="">ทุกหมวดหมู่</option>
+              {categories.map((c) => (
+                <option key={c.CategoryID} value={c.CategoryID}>
+                  {c.CategoryName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex space-x-2">
+            <select
+              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 border"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="">ทุกสถานะ</option>
+              {statuses.map((s) => (
+                <option key={s.DVStatusID} value={s.DVStatusID}>
+                  {s.StatusNameDV}
+                </option>
+              ))}
+            </select>
+            
+            {(searchTerm || filterCategory || filterStatus) && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setFilterCategory("");
+                  setFilterStatus("");
+                }}
+                className="px-3 py-2 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 text-sm whitespace-nowrap"
+              >
+                ล้าง
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="overflow-x-auto shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left text-gray-500">
@@ -196,8 +301,8 @@ const AllDevices = () => {
             </tr>
           </thead>
           <tbody>
-            {devices.length > 0 ? (
-              devices.map((device) => (
+            {filteredDevices.length > 0 ? (
+              filteredDevices.map((device) => (
                 <tr
                   key={device.DVID}
                   className="bg-white border-b hover:bg-gray-50"

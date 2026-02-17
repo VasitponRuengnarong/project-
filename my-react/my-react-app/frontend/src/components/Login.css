@@ -232,17 +232,21 @@
 }
 
 .forgot-password-link {
-  background: none;
-  border: none;
   color: #ff8000;
+  text-decoration: none;
   font-weight: 600;
-  cursor: pointer;
-  padding: 0;
   font-size: 13px;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
+
 .forgot-password-link:hover {
-  text-decoration: underline;
+  color: #ea580c;
+  background-color: rgba(255, 128, 0, 0.05);
+  text-decoration: none;
 }
+
 
 /* Login Button */
 .login-btn {

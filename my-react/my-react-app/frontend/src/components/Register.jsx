@@ -29,7 +29,7 @@ const Register = () => {
     phone: "",
     institutionId: "",
     departmentId: "",
-    profileImage: "", // Base64 string
+    profileImage: "", 
     password: "",
     confirmPassword: "",
   });
@@ -138,27 +138,33 @@ const Register = () => {
     let emailExists = false;
     try {
       // Check username
+  // Check username
       const usernameRes = await fetch(
         `/api/check-username?username=${username}`,
       );
-      const usernameData = await usernameRes.json();
-      if (usernameData.exists) {
-        usernameExists = true;
+      if (usernameRes.ok) {
+        const usernameData = await usernameRes.json();
+        if (usernameData.exists) {
+          usernameExists = true;
+        }
+      } else {
+        console.warn("Check username failed:", usernameRes.status);
       }
 
       // Check email
       const emailRes = await fetch(`/api/check-email?email=${email}`);
-      const emailData = await emailRes.json();
-      if (emailData.exists) {
-        emailExists = true;
+      if (emailRes.ok) {
+        const emailData = await emailRes.json();
+        if (emailData.exists) {
+          emailExists = true;
+        }
+      } else {
+        console.warn("Check email failed:", emailRes.status);
       }
     } catch (error) {
       console.error("Error checking duplicates:", error);
-      Swal.fire(
-        "เกิดข้อผิดพลาด!",
-        "ไม่สามารถตรวจสอบข้อมูลซ้ำได้ กรุณาลองใหม่",
-        "error",
-      );
+      // We don't block the user here if there's a network error, 
+      // but we log it. The final submit will fail if it's a true duplicate.
     } finally {
       setIsCheckingDuplicate(false);
     }

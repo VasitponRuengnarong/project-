@@ -1,5 +1,5 @@
 const express = require("express");
-const mysql = require("mysql2/promise"); // Use the promise-based library
+const mysql = require("mysql2/promise");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -2147,6 +2147,40 @@ app.delete("/api/users/:id", verifyToken, checkAdmin, async (req, res) => {
   } catch (error) {
     console.error("Error deleting user:", error);
     res.status(500).json({ message: "เกิดข้อผิดพลาดในการลบสมาชิก" });
+  }
+});
+
+// --- User Validation Endpoints ---
+
+// Check if username exists
+app.get("/api/check-username", async (req, res) => {
+  const { username } = req.query;
+  if (!username) return res.status(400).json({ message: "Username required" });
+  try {
+    const [rows] = await db.execute(
+      "SELECT EMPID FROM TB_T_Employee WHERE username = ?",
+      [username]
+    );
+    res.json({ exists: rows.length > 0 });
+  } catch (error) {
+    console.error("Error checking username:", error);
+    res.status(500).json({ message: "Error checking username" });
+  }
+});
+
+// Check if email exists
+app.get("/api/check-email", async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ message: "Email required" });
+  try {
+    const [rows] = await db.execute(
+      "SELECT EMPID FROM TB_T_Employee WHERE email = ?",
+      [email]
+    );
+    res.json({ exists: rows.length > 0 });
+  } catch (error) {
+    console.error("Error checking email:", error);
+    res.status(500).json({ message: "Error checking email" });
   }
 });
 

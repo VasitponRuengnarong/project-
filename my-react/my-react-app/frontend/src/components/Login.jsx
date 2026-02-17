@@ -140,9 +140,9 @@ const Login = () => {
                 <input type="checkbox" />
                 <span>Remember me</span>
               </label>
-              <button type="button" className="forgot-password-link">
-                <Link to="/forgot-password">ลืมรหัสผ่าน?</Link>
-              </button>
+              <Link to="/forgot-password" title="Click to reset password" className="forgot-password-link">
+                Forgot Password?
+              </Link>
             </div>
 
             <button
