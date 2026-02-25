@@ -46,7 +46,7 @@ const ApprovalPage = () => {
           if (borrow.items && Array.isArray(borrow.items)) {
             const uniqueItems = Array.from(
               new Map(
-                borrow.items.map((item) => [item.BorrowDetailID, item]),
+                borrow.items.map((item) => [item.BorrowDetailID || item.DetailID, item]),
               ).values(),
             );
             return { ...borrow, items: uniqueItems };

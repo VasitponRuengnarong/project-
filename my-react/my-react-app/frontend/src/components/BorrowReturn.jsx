@@ -9,6 +9,11 @@ import {
   Repeat,
   CheckCircle,
   Search,
+  Tag,
+  Package,
+  Sliders,
+  X,
+  Filter,
 } from "lucide-react";
 import "./BorrowReturn.css";
 import Swal from "sweetalert2";
@@ -21,6 +26,8 @@ const BorrowReturn = () => {
   const [masterData, setMasterData] = useState({
     institutions: [],
     departments: [],
+    brands: [],
+    types: [],
   });
   const [products, setProducts] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -33,7 +40,13 @@ const BorrowReturn = () => {
     items: [],
   });
 
+  const [filters, setFilters] = useState({
+    brand: "ทั้งหมด",
+    type: "ทั้งหมด",
+  });
+
   const [newItem, setNewItem] = useState({ name: "", quantity: 1, remark: "" });
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -43,15 +56,26 @@ const BorrowReturn = () => {
 
     const fetchMasterData = async () => {
       try {
-        const [instRes, deptRes, prodRes] = await Promise.all([
+        const [instRes, deptRes, prodRes, brandRes, typeRes] = await Promise.all([
           apiFetch("/api/institutions"),
           apiFetch("/api/departments"),
           apiFetch("/api/products"),
+          apiFetch("/api/brands"),
+          apiFetch("/api/types"),
         ]);
+        
         if (instRes.ok && deptRes.ok) {
           const institutions = await instRes.json();
           const departments = await deptRes.json();
-          setMasterData({ institutions, departments });
+          const brands = brandRes.ok ? await brandRes.json() : [];
+          const types = typeRes.ok ? await typeRes.json() : [];
+          
+          setMasterData({ 
+            institutions, 
+            departments, 
+            brands, 
+            types 
+          });
         }
         if (prodRes.ok) {
           const prods = await prodRes.json();
@@ -100,22 +124,38 @@ const BorrowReturn = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const updateSuggestions = (nameValue, currentFilters) => {
+    const filtersToUse = currentFilters || filters;
+    const lowerVal = (nameValue || "").toLowerCase().trim();
+    
+    const filtered = products.filter((p) => {
+      const matchesSearch = !lowerVal || 
+        (p.DeviceName && p.DeviceName.toLowerCase().includes(lowerVal)) ||
+        (p.DeviceCode && p.DeviceCode.toLowerCase().includes(lowerVal));
+      
+      const matchesBrand = filtersToUse.brand === "ทั้งหมด" || p.BrandName === filtersToUse.brand;
+      const matchesType = filtersToUse.type === "ทั้งหมด" || p.TypeName === filtersToUse.type;
+      
+      return matchesSearch && matchesBrand && matchesType;
+    });
+
+    setSuggestions(filtered.slice(0, 10)); // Limit suggestions
+    // Show suggestions if there's a search term OR if any filter is active
+    setShowSuggestions(lowerVal.length > 0 || filtersToUse.brand !== "ทั้งหมด" || filtersToUse.type !== "ทั้งหมด");
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    const updatedFilters = { ...filters, [name]: value };
+    setFilters(updatedFilters);
+    // Refresh suggestions with the new filters
+    updateSuggestions(newItem.name, updatedFilters);
+  };
+
   const handleNameChange = (e) => {
     const value = e.target.value;
     setNewItem({ ...newItem, name: value });
-
-    if (value.trim().length > 0) {
-      const lowerVal = value.toLowerCase();
-      const filtered = products.filter(
-        (p) =>
-          (p.DeviceName && p.DeviceName.toLowerCase().includes(lowerVal)) ||
-          (p.DeviceCode && p.DeviceCode.toLowerCase().includes(lowerVal)),
-      );
-      setSuggestions(filtered.slice(0, 10)); // Limit suggestions
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
-    }
+    updateSuggestions(value);
   };
 
   const handleSelectSuggestion = (product) => {
@@ -341,101 +381,223 @@ const BorrowReturn = () => {
             <div className="info-card">
               <h3 className="card-title">
                 <Briefcase size={20} /> รายการอุปกรณ์
+                {formData.items.length > 0 && (
+                  <span className="item-count-badge">{formData.items.length} รายการ</span>
+                )}
               </h3>
 
-              <div className="add-item-row">
-                <div className="modern-select-wrapper">
-                  <div className="modern-input-group">
-                    <Search className="input-icon" size={18} />
-                    <input
-                      type="text"
-                      name="name"
-                      placeholder="ค้นหาชื่ออุปกรณ์..."
-                      value={newItem.name}
-                      onChange={handleNameChange}
-                      className="modern-input"
-                      autoComplete="off"
-                      onBlur={() =>
-                        setTimeout(() => setShowSuggestions(false), 200)
-                      }
-                      onFocus={() => newItem.name && setShowSuggestions(true)}
-                    />
-                  </div>
-                  {showSuggestions && suggestions.length > 0 && (
-                    <ul className="suggestions-list">
-                      {suggestions.map((p) => (
-                        <li
-                          key={p.DVID}
-                          className="suggestion-item"
-                          onClick={() => handleSelectSuggestion(p)}
-                        >
-                          <div className="suggestion-name">{p.DeviceName}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <input
-                  type="number"
-                  name="quantity"
-                  min="1"
-                  value={newItem.quantity}
-                  onChange={handleItemChange}
-                  className="item-input-qty"
-                />
-                <input
-                  type="text"
-                  name="remark"
-                  placeholder="หมายเหตุ"
-                  value={newItem.remark}
-                  onChange={handleItemChange}
-                  className="item-input-remark"
-                />
-                <button type="button" onClick={addItem} className="add-btn">
-                  <Plus size={18} /> เพิ่ม
-                </button>
-              </div>
+              {/* Discovery Panel: Now as a Pop-up Modal */}
+              {showFilterModal && (
+                <div className="filter-overlay" onClick={() => setShowFilterModal(false)}>
+                  <div className="filter-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="filter-modal-header">
+                      <div className="filter-modal-title">
+                        <Sliders size={20} />
+                        ค้นหาอุปกรณ์แบบละเอียด
+                      </div>
+                      <button 
+                        type="button" 
+                        className="modal-close-btn"
+                        onClick={() => setShowFilterModal(false)}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
 
-              <div className="items-table-wrapper">
-                <table className="items-table">
-                  <thead>
-                    <tr>
-                      <th>ลำดับ</th>
-                      <th>รายการ</th>
-                      <th>จำนวน</th>
-                      <th>หมายเหตุ</th>
-                      <th>จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formData.items.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="empty-row">
-                          ยังไม่มีรายการที่เลือก
-                        </td>
-                      </tr>
-                    ) : (
-                      formData.items.map((item, index) => (
-                        <tr key={item.id}>
-                          <td>{index + 1}</td>
-                          <td>{item.name}</td>
-                          <td>{item.quantity}</td>
-                          <td>{item.remark}</td>
-                          <td>
+                    <div className="discovery-panel-modal">
+                      <div className="filter-section-modal">
+                        <div className="filter-group">
+                          <div className="filter-header">
+                            <Tag className="filter-icon" size={16} />
+                            <label className="filter-label">แบรนด์ (Brand)</label>
+                          </div>
+                          <div className="chips-wrapper">
                             <button
                               type="button"
-                              onClick={() => removeItem(item.id)}
-                              className="delete-btn"
+                              className={`filter-chip ${filters.brand === "ทั้งหมด" ? "active" : ""}`}
+                              onClick={() => handleFilterChange({ target: { name: "brand", value: "ทั้งหมด" } })}
                             >
-                              <Trash2 size={16} />
+                              ทั้งหมด
                             </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                            {masterData.brands.map((b) => (
+                              <button
+                                key={b.BrandID}
+                                type="button"
+                                className={`filter-chip ${filters.brand === b.BrandName ? "active" : ""}`}
+                                onClick={() => handleFilterChange({ target: { name: "brand", value: b.BrandName } })}
+                              >
+                                {b.BrandName}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="filter-group">
+                          <div className="filter-header">
+                            <Package className="filter-icon" size={16} />
+                            <label className="filter-label">ประเภทสินค้า (Device Type)</label>
+                          </div>
+                          <div className="chips-wrapper">
+                            <button
+                              type="button"
+                              className={`filter-chip ${filters.type === "ทั้งหมด" ? "active" : ""}`}
+                              onClick={() => handleFilterChange({ target: { name: "type", value: "ทั้งหมด" } })}
+                            >
+                              ทั้งหมด
+                            </button>
+                            {masterData.types.map((t) => (
+                              <button
+                                key={t.TypeID}
+                                type="button"
+                                className={`filter-chip ${filters.type === t.TypeName ? "active" : ""}`}
+                                onClick={() => handleFilterChange({ target: { name: "type", value: t.TypeName } })}
+                              >
+                                {t.TypeName}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="filter-modal-footer">
+                      <button 
+                        type="button" 
+                        className="modal-apply-btn"
+                        onClick={() => setShowFilterModal(false)}
+                      >
+                        ดูผลลัพธ์
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="selection-bar">
+                  <div className="add-item-field">
+                    <label className="add-item-label">&nbsp;</label>
+                    <button 
+                      type="button" 
+                      className={`filter-toggle-btn ${(filters.brand !== "ทั้งหมด" || filters.type !== "ทั้งหมด") ? 'active' : ''}`}
+                      onClick={() => setShowFilterModal(true)}
+                    >
+                      <Filter size={18} />
+                      <span>ตัวกรอง</span>
+                      {(filters.brand !== "ทั้งหมด" || filters.type !== "ทั้งหมด") && (
+                        <span className="filter-badge">
+                          {(filters.brand !== "ทั้งหมด" ? 1 : 0) + (filters.type !== "ทั้งหมด" ? 1 : 0)}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <div className="add-item-field">
+                    <label className="add-item-label"><Search size={14} /> ค้นหาอุปกรณ์</label>
+                    <div className="modern-select-wrapper">
+                      <div className="modern-input-group">
+                        <Search className="input-icon" size={18} />
+                        <input
+                          type="text"
+                          name="name"
+                          placeholder="พิมพ์ชื่ออุปกรณ์เพื่อค้นหา..."
+                          value={newItem.name}
+                          onChange={handleNameChange}
+                          className="modern-input"
+                          autoComplete="off"
+                          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                          onFocus={() => (newItem.name || filters.brand !== "ทั้งหมด" || filters.type !== "ทั้งหมด") && setShowSuggestions(true)}
+                        />
+                      </div>
+                      {showSuggestions && suggestions.length > 0 && (
+                        <ul className="suggestions-list">
+                          {suggestions.map((p) => (
+                            <li
+                              key={p.DVID}
+                              className="suggestion-item"
+                              onClick={() => handleSelectSuggestion(p)}
+                            >
+                              <div className="suggestion-name">{p.DeviceName}</div>
+                              {p.BrandName && p.TypeName && (
+                                <div className="suggestion-code">
+                                  {p.BrandName} • {p.TypeName}
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="add-item-field">
+                    <label className="add-item-label"><Package size={14} /> จำนวน</label>
+                    <input
+                      type="number"
+                      name="quantity"
+                      min="1"
+                      value={newItem.quantity}
+                      onChange={handleItemChange}
+                      className="item-input-qty"
+                    />
+                  </div>
+
+                  <div className="add-item-field">
+                    <label className="add-item-label"><FileText size={14} /> หมายเหตุ</label>
+                    <input
+                      type="text"
+                      name="remark"
+                      placeholder="ระบุหมายเหตุ (ถ้ามี)"
+                      value={newItem.remark}
+                      onChange={handleItemChange}
+                      className="item-input-remark"
+                    />
+                  </div>
+
+                  <button type="button" onClick={addItem} className="add-btn">
+                    <Plus size={20} />
+                    <span>เพิ่มเข้าลิสต์</span>
+                  </button>
+                </div>
+
+              {/* Item Card List: Premium view */}
+              {formData.items.length === 0 ? (
+                <div className="empty-items-state">
+                  <Package size={48} className="empty-icon" />
+                  <p className="empty-title">ยังไม่ได้เพิ่มรายการอุปกรณ์</p>
+                  <p className="empty-subtitle">เลือกแบรนด์/ประเภท หรือค้นหาอุปกรณ์ด้านบนเพื่อเริ่มต้น</p>
+                </div>
+              ) : (
+                <div className="item-card-list">
+                  <div className="item-card-header">
+                    <span>#</span>
+                    <span>ชื่ออุปกรณ์</span>
+                    <span style={{ textAlign: "center" }}>จำนวน</span>
+                    <span>หมายเหตุ</span>
+                    <span style={{ textAlign: "right" }}>จัดการ</span>
+                  </div>
+                  {formData.items.map((item, index) => (
+                    <div key={item.id} className="item-card-row">
+                      <div className="item-no-badge">{index + 1}</div>
+                      <div className="item-name">{item.name}</div>
+                      <div style={{ textAlign: "center" }}>
+                        <span className="item-qty-badge">{item.quantity}</span>
+                      </div>
+                      <div className="item-remark">
+                        {item.remark || <span style={{ opacity: 0.3 }}>— ไม่ระบุ —</span>}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="delete-btn"
+                          title="ลบรายการ"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-actions">
@@ -468,7 +630,6 @@ const BorrowReturn = () => {
                       <th>กำหนดคืน</th>
                       <th>วัตถุประสงค์</th>
                       <th>รายการอุปกรณ์</th>
-                      <th>จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -501,18 +662,7 @@ const BorrowReturn = () => {
                             ))}
                           </ul>
                         </td>
-                        <td>
-                          {borrow.Status === "PendingReturn" ? (
-                            <span className="status-badge-pending">รอการตรวจสอบ</span>
-                          ) : (
-                            <button 
-                              className="return-btn-action"
-                              onClick={() => handleReturn(borrow.BorrowID)}
-                            >
-                              คืนอุปกรณ์
-                            </button>
-                          )}
-                        </td>
+
                       </tr>
                     ))}
                   </tbody>

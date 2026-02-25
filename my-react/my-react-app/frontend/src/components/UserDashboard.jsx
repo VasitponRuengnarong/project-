@@ -7,6 +7,7 @@ import {
   Calendar,
   CheckCircle2,
   TrendingUp,
+  Plus,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { apiFetch } from "./api";
@@ -191,8 +192,9 @@ const UserDashboard = () => {
                 <p>คุณสามารถเริ่มยืมอุปกรณ์ได้จากหน้า "ยืมอุปกรณ์"</p>
                 <button 
                   onClick={() => navigate("/borrow")}
-                  className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full font-medium hover:shadow-lg hover:scale-105 transition transform duration-200"
+                  className="btn-borrow-premium"
                 >
+                  <Plus className="w-5 h-5" />
                   ยืมอุปกรณ์ใหม่
                 </button>
               </div>
@@ -203,7 +205,7 @@ const UserDashboard = () => {
                 const progressColor = getProgressColor(daysLeft);
 
                 return (
-                  <div key={loan.BorrowID + loan.ItemName} className="loan-card-premium animate-enter">
+                  <div key={loan.BorrowDetailID || (loan.BorrowID + loan.ItemName)} className="loan-card-premium animate-enter">
                     <div className="loan-img-wrapper">
                       <img
                         src={loan.Image || "/images/logo.png"}

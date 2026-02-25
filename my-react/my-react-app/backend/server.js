@@ -135,7 +135,7 @@ db.getConnection()
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS TB_M_Category (
         CategoryID INT AUTO_INCREMENT PRIMARY KEY,
-        CategoryName VARCHAR(255) NOT NULL
+        CategoryName VARCHAR(255) NOT NULL UNIQUE
       )
     `);
 
@@ -625,10 +625,19 @@ db.getConnection()
     // --- Mock Data: Generate SerialNumber if missing ---
     console.log("Generating mock SerialNumbers for missing entries...");
     await connection.execute(`
-      UPDATE TB_T_Device 
-      SET SerialNumber = CONCAT('SN-', LPAD(DVID, 5, '0')) 
+      UPDATE TB_T_Device
+      SET SerialNumber = CONCAT('SN-', LPAD(DVID, 5, '0'))
       WHERE SerialNumber IS NULL OR SerialNumber = ''
     `);
+
+    // --- Cleanup: Remove corrupted Mojibake entries from master tables ---
+    console.log("Cleaning up corrupted master data...");
+    try {
+      await connection.execute("DELETE FROM TB_M_Type WHERE TypeName REGEXP '^[?]+'");
+      await connection.execute("DELETE FROM TB_M_Brand WHERE BrandName REGEXP '^[?]+'");
+    } catch (e) {
+      console.error("Cleanup error:", e.message);
+    }
 
     connection.release();
   })
@@ -749,6 +758,8 @@ createMasterDataRoute(app, "roles", "TB_M_Role");
 createMasterDataRoute(app, "emp-statuses", "TB_M_StatusEMP");
 createMasterDataRoute(app, "categories", "TB_M_Category"); // เพิ่ม Route สำหรับดึงข้อมูลหมวดหมู่สินค้า
 createMasterDataRoute(app, "device-statuses", "TB_M_StatusDevice"); // เพิ่ม Route สำหรับดึงข้อมูลสถานะอุปกรณ์
+createMasterDataRoute(app, "brands", "TB_M_Brand");
+createMasterDataRoute(app, "types", "TB_M_Type");
 
 // CRUD Endpoints for Institution Management
 
@@ -1432,7 +1443,7 @@ app.get("/api/dashboard/user-stats", verifyToken, async (req, res) => {
       SELECT SUM(bd.Quantity) as count 
       FROM TB_T_Borrow b 
       JOIN TB_T_BorrowDetail bd ON b.BorrowID = bd.BorrowID 
-      WHERE b.EMPID = ? AND b.Status = 'Approved'
+      WHERE b.EMPID = ? AND b.Status IN ('Approved', 'Accepted')
     `,
       [userId],
     );
@@ -1458,7 +1469,7 @@ app.get("/api/dashboard/user-stats", verifyToken, async (req, res) => {
     const [currentLoans] = await db.execute(
       `
       SELECT b.BorrowID, b.BorrowDate, b.ReturnDate, b.Status,
-             bd.ItemName, bd.Quantity,
+             bd.ItemName, bd.Quantity, bd.DetailID AS BorrowDetailID,
              d.DeviceCode as AssetCode, d.Image
       FROM TB_T_Borrow b
       JOIN TB_T_BorrowDetail bd ON b.BorrowID = bd.BorrowID
@@ -1659,7 +1670,13 @@ app.get("/api/borrows/pending", verifyToken, checkAdmin, async (req, res) => {
     // Fetch details for each borrow
     for (let borrow of borrows) {
       const [details] = await db.execute(
-        "SELECT * FROM TB_T_BorrowDetail WHERE BorrowID = ?",
+        `
+        SELECT bd.*, bd.DetailID AS BorrowDetailID, MAX(d.DeviceCode) as DeviceCode, MAX(d.Image) as Image
+        FROM TB_T_BorrowDetail bd
+        LEFT JOIN TB_T_Device d ON bd.ItemName = d.DeviceName COLLATE utf8mb4_unicode_ci
+        WHERE bd.BorrowID = ?
+        GROUP BY bd.DetailID
+        `,
         [borrow.BorrowID],
       );
       borrow.items = details;
@@ -1878,7 +1895,13 @@ app.get("/api/borrows/user/:userId", verifyToken, async (req, res) => {
 
     for (let borrow of borrows) {
       const [details] = await db.execute(
-        "SELECT * FROM TB_T_BorrowDetail WHERE BorrowID = ?",
+        `
+        SELECT bd.*, bd.DetailID AS BorrowDetailID, MAX(d.DeviceCode) as DeviceCode, MAX(d.Image) as Image
+        FROM TB_T_BorrowDetail bd
+        LEFT JOIN TB_T_Device d ON bd.ItemName = d.DeviceName COLLATE utf8mb4_unicode_ci
+        WHERE bd.BorrowID = ?
+        GROUP BY bd.DetailID
+        `,
         [borrow.BorrowID],
       );
       borrow.items = details;
@@ -1917,10 +1940,11 @@ app.get("/api/borrows", verifyToken, async (req, res) => {
     for (let borrow of borrows) {
       const [details] = await db.execute(
         `
-        SELECT bd.*, d.DeviceCode, d.Image
+        SELECT bd.*, bd.DetailID AS BorrowDetailID, MAX(d.DeviceCode) as DeviceCode, MAX(d.Image) as Image
         FROM TB_T_BorrowDetail bd
         LEFT JOIN TB_T_Device d ON bd.ItemName = d.DeviceName COLLATE utf8mb4_unicode_ci
         WHERE bd.BorrowID = ?
+        GROUP BY bd.DetailID
         `,
         [borrow.BorrowID],
       );
