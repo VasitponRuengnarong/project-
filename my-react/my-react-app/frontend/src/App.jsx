@@ -8,23 +8,23 @@ import {
 } from "react-router-dom";
 
 // --- Components ---
-import Login from "./components/Login";
-import Register from "./components/Register";
-import ForgotPassword from "./components/ForgotPassword";
-import ResetPassword from "./components/ResetPassword";
-import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import MainLayout from "./MainLayout";
-import AdminDashboard from "./components/AdminDashboard";
-import UserDashboard from "./components/UserDashboard";
-import ProductManagement from "./components/ProductManagement";
-import BorrowReturn from "./components/BorrowReturn";
-import History from "./components/BorrowHistory";
-import UserProfile from "./components/UserProfile";
-import MemberManagement from "./components/MemberManagement";
-import ApprovalPage from "./components/ApprovalPage.jsx";
-import ActivityLogPage from "./components/ActivityLogPage.jsx";
-import AccessDenied from "./components/AccessDenied";
-import NotificationHistory from "./components/NotificationHistory";
+import AdminDashboard from "./components/dashboard/AdminDashboard";
+import UserDashboard from "./components/dashboard/UserDashboard";
+import ProductManagement from "./components/management/ProductManagement";
+import BorrowReturn from "./components/borrow/BorrowReturn";
+import History from "./components/borrow/BorrowHistory";
+import UserProfile from "./components/profile/UserProfile";
+import MemberManagement from "./components/management/MemberManagement";
+import ApprovalPage from "./components/management/ApprovalPage";
+import ActivityLogPage from "./components/management/ActivityLogPage";
+import AccessDenied from "./components/ui/AccessDenied";
+import NotificationHistory from "./components/notifications/NotificationHistory";
 
 import "./GlobalStyles.css";
 

@@ -10,14 +10,14 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import "./AdminDashboard.css";
-import { apiFetch } from "./api";
+import { apiFetch } from "../../services/api";
 import StatusChartCard from "./StatusChartCard";
 import CategoryChartCard from "./CategoryChartCard";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalAssets: 0,
-    currentlyBorrowed: 0, 
+    currentlyBorrowed: 0,
     pendingApproval: 0,
     overdue: 0,
     recentActivity: [],
